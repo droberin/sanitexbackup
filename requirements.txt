@@ -1,0 +1,5 @@
+scp
+paramiko
+libvirt-python
+python-telegram-bot
+pyotp
