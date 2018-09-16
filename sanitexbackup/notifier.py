@@ -5,9 +5,7 @@ import sys
 import time
 import logging
 import datetime
-import pyotp
-import json
-import getopt
+# import pyotp
 
 from telegram.ext import MessageHandler, Filters
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
@@ -22,7 +20,9 @@ class Notifier:
     dispatcher = None
 
     def __init__(self, connection=None):
-        self.my_token = os.getenv('TELEGRAM_TOKEN', None)
+        if 'telegram_token' in connection:
+            logging.warning("telegram token found in config!")
+            self.my_token = connection['telegram_token']
         if self.my_token is None:
             logging.warning('No Telegram token found in environment var TELEGRAM_TOKEN')
             logging.info("Finishing Telegram bot process.")
@@ -30,6 +30,7 @@ class Notifier:
         try:
             self.updater = Updater(token=self.my_token)
             self.dispatcher = self.updater.dispatcher
+        # This except is too damn hardcore...
         except:
             logging.error("Token error")
             sys.exit(2)
@@ -48,6 +49,7 @@ class Notifier:
         self.dispatcher.add_handler(echo_handler)
 
         self.updater.start_polling()
+        logging.warning("NotifierRobot running...")
         self.updater.idle()
 
     def start(self, bot, update):

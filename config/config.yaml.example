@@ -1,0 +1,6 @@
+connection:
+  host: "your remote host name or IP address, can be localhost"
+  user: "remote_username"
+  port: 22
+  vm_name: "your_virtual_machine_name_to_backup"
+  telegram_token: "your:telegram:token"

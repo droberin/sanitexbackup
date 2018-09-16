@@ -2,7 +2,7 @@
 import logging
 from os import path, mkdir
 from scp import SCPClient, SCPException
-from paramiko import SSHClient, SSHException
+from paramiko import SSHClient, SSHException, AutoAddPolicy
 
 
 class RetrieveBackup:
@@ -47,13 +47,14 @@ class RetrieveBackup:
         else:
             ssh_port = 22
         ssh = SSHClient()
+        ssh.set_missing_host_key_policy(AutoAddPolicy())
         ssh.load_host_keys(filename=path.join(path.expanduser('~'), '.ssh', 'known_hosts'))
         try:
             ssh.connect(
                 hostname=self.connection['host'],
                 username=self.connection['user'],
                 port=ssh_port,
-                key_filename=self.connection['keyfile']
+                key_filename=self.connection['keyfile'],
             )
         except SSHException as e:
             logging.critical('SSH Failed: {}'.format(e))

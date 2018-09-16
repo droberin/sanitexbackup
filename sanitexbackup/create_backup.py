@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
 from os import path
-from paramiko import SSHClient, SSHException
+from paramiko import SSHClient, SSHException, AutoAddPolicy
 from time import sleep
 from xml.dom import minidom
 import libvirt
@@ -49,7 +49,7 @@ class CreateBackup:
                         print('    ' + diskNode.attributes[attr].name + ' = ' +
                               diskNode.attributes[attr].value)
                         if diskType.getAttribute('device') == "disk" and diskNode.attributes[attr].name == "file" and \
-                                diskNode.attributes[attr].value != None:
+                                diskNode.attributes[attr].value is not None:
                             images_to_save.append(diskNode.attributes[attr].value)
         return images_to_save
 
@@ -58,6 +58,21 @@ class CreateBackup:
             logging.critical('No virtual machine name was provided')
             return None
         else:
+            try:
+                ssh = SSHClient()
+                ssh.set_missing_host_key_policy(AutoAddPolicy())
+                # TODO: Port is hardcoded here... fix it
+                ssh.connect(
+                    hostname=self.connection['host'],
+                    username=self.connection['user'],
+                    port=22,
+                    key_filename=self.connection['keyfile'],
+                    pkey=self.connection['keyfile'],
+                )
+                ssh.close()
+            except SSHException as e:
+                logging.critical("SSH Error: {}".format(e))
+                return None
             try:
                 return self.libvirt_connection.lookupByName(self.connection['vm_name'])
             except libvirt.libvirtError as e:
@@ -104,6 +119,7 @@ class CreateBackup:
         else:
             ssh_port = 22
         ssh = SSHClient()
+        ssh.set_missing_host_key_policy(AutoAddPolicy())
         vm = self.find_virtual_machine()
         if vm is None:
             logging.critical('Failed to obtain VM')

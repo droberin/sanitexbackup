@@ -1,22 +1,21 @@
 # -*- coding: utf-8 -*-
-from sanitexbackup.create_backup import CreateBackup
+# from sanitexbackup.create_backup import CreateBackup
 from sanitexbackup.notifier import Notifier
-from os import environ
-from time import sleep
+from configloader import get_config_from_file
 
-connection = {
-    'host': 'remote_server',
-    'user': 'root',
-    'keyfile': '/home/user/.ssh/id_backups',
-    'vm_name': 'virtual-machine'
-}
+connection = get_config_from_file()
 
-#backup_creator = CreateBackup(connection)
+if 'connection' in connection:
+    connection = connection['connection']
+# backup_creator = CreateBackup(connection)
 
-#backup_result = backup_creator.create_backup()
-#if backup_result is None:
-#    print("failed")
-#else:
-#    print(backup_result)
+if 'keyfile' not in connection:
+    connection['keyfile'] = '/app/config/id_rsa'
 
-botijo = Notifier(connection)
+# backup_result = backup_creator.create_backup()
+# if backup_result is None:
+#     print("failed")
+# else:
+#     print(backup_result)
+
+my_robot = Notifier(connection)
