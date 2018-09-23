@@ -235,7 +235,7 @@ class Notifier:
                 backup_name = str(params[2])
                 bot.sendMessage(chat_id=chat_id, text="Hold on, this may take a while... really...")
                 new_backup = create_backup.CreateBackup(self.connection)
-                data = list(new_backup.retrieve_backup(backup_name))
+                data = new_backup.retrieve_backup(backup_name)
                 del new_backup
                 if data:
                     _composed_message = "\n".join(data)

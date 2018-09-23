@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 import logging
-from os import path
+from os import path, mkdir
 from paramiko import SSHClient, SSHException, AutoAddPolicy
 from time import sleep
 from xml.dom import minidom
 import libvirt
 from datetime import datetime
-import scp
 
 
 class CreateBackup:
@@ -164,12 +163,22 @@ class CreateBackup:
                 )
                 out.append(stdout.readlines())
                 stdin.flush()
+            # Dump XML too
+            ftp = ssh.open_sftp()
+            ftp.chdir(self.remote_path + '/' + current_backup_dir)
+            with ftp.open('VMdump.xml') as xml_dump_fp:
+                xml_dump_fp.write(vm.XMLDesc())
+            ftp.close()
         except SSHException as e:
             logging.critical('SSH error: {}'.format(e))
             return False, current_backup_dir
         if not self._activate_vm(vm):
             out.append("Failed to reactivate VM\n")
         return out, current_backup_dir
+
+    @staticmethod
+    def _print_scp_progress(filename, size, sent):
+        logging.warning("%s\'s progress: %.2f%% \r" % (filename, float(sent)/float(size)*100) )
 
     def retrieve_backup(self, backup_name=None):
         if not backup_name:
@@ -195,10 +204,21 @@ class CreateBackup:
             ssh.close()
             return False
         try:
-            out = scp.get(ssh, self.remote_path + '/' + backup_name, '/app/backups')
+            ftp = ssh.open_sftp()
+            ftp.chdir(self.remote_path + '/' + backup_name)
+            data = ftp.listdir()
+            if not path.isdir('/app/backups/' + backup_name):
+                mkdir('/app/backups/' + backup_name)
+            for to_retrieve in data:
+                logging.warning('Retrieving {} from backup {}'.format(to_retrieve, '/app/backups/' + backup_name))
+                ftp.get(
+                    to_retrieve,
+                    '/app/backups/' + backup_name + '/' + to_retrieve)
         except SSHException as e:
             logging.critical('SSH error: {}'.format(e))
             return False
+        except FileNotFoundError:
+            out = 'Backup not found in remote server'
         return out
 
     def list_backups(self):
