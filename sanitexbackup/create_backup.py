@@ -6,21 +6,24 @@ from time import sleep
 from xml.dom import minidom
 import libvirt
 from datetime import datetime
+import scp
 
 
 class CreateBackup:
     connection = dict()
-
+    remote_path = None
     libvirt_connection = None
     snapshot_xml_template = """<domainsnapshot>
       <name>{}</name>
     </domainsnapshot>"""
 
-    def __init__(self, connection, remote_path=None):
+    def __init__(self, connection):
         self.connection = connection
+        if 'temporary_backup_path' in connection:
+            self.remote_path = connection['temporarily_remote_backup_path']
+        else:
+            self.remote_path = '/var/backups'
         self.__connect_libvirt()
-        if remote_path is None:
-            self.remote_path = '/tmp/'
 
     def __connect_libvirt(self):
         try:
@@ -34,7 +37,8 @@ class CreateBackup:
         else:
             return True
 
-    def _print_all_vm_disks(self, vm):
+    @staticmethod
+    def _print_all_vm_disks(vm):
         raw_xml = vm.XMLDesc(0)
         xml = minidom.parseString(raw_xml)
         disk_types = xml.getElementsByTagName('disk')
@@ -59,17 +63,19 @@ class CreateBackup:
             return None
         else:
             try:
-                ssh = SSHClient()
-                ssh.set_missing_host_key_policy(AutoAddPolicy())
-                # TODO: Port is hardcoded here... fix it
-                ssh.connect(
-                    hostname=self.connection['host'],
-                    username=self.connection['user'],
-                    port=22,
-                    key_filename=self.connection['keyfile'],
-                    pkey=self.connection['keyfile'],
-                )
-                ssh.close()
+                # ssh = SSHClient()
+                # ssh.set_missing_host_key_policy(AutoAddPolicy())
+                # # TODO: Port is hardcoded here... fix it
+                # ssh.connect(
+                #     hostname=self.connection['host'],
+                #     username=self.connection['user'],
+                #     port=22,
+                #     key_filename=self.connection['keyfile'],
+                #     pkey=self.connection['keyfile'],
+                # )
+                # ssh.close()
+                if not self._is_libvirt_connected():
+                    self.__connect_libvirt()
             except SSHException as e:
                 logging.critical("SSH Error: {}".format(e))
                 return None
@@ -113,6 +119,7 @@ class CreateBackup:
         return True
 
     def create_backup(self):
+        current_backup_dir = None
         out = []
         if 'port' in self.connection:
             ssh_port = self.connection['port']
@@ -123,7 +130,7 @@ class CreateBackup:
         vm = self.find_virtual_machine()
         if vm is None:
             logging.critical('Failed to obtain VM')
-            return False
+            return False, current_backup_dir
         else:
             vm_status = vm.isActive()
             logging.warning('VM "{}" found [Status: {}]'.format(self.connection['vm_name'], vm_status))
@@ -131,7 +138,7 @@ class CreateBackup:
                 deactivation = self._deactivate_vm(vm)
                 if not deactivation:
                     logging.critical('Could not shutdown machine.')
-                    return False
+                    return False, current_backup_dir
             # return True
 
         images_to_save = self._print_all_vm_disks(vm)
@@ -146,18 +153,85 @@ class CreateBackup:
         except SSHException as e:
             logging.critical('SSH Failed: {}'.format(e))
             ssh.close()
-            return False
+            return False, current_backup_dir
         try:
+            current_backup_dir = datetime.today().strftime("backup-%Y%m%d%H%M")
+            stdin, stdout, ssh_stderr = ssh.exec_command('mkdir {}/{}'.format(self.remote_path, current_backup_dir))
+            stdin.flush()
             for image_to_save in images_to_save:
-                stdin, stdout, ssh_stderr = ssh.exec_command('cp -v {} {}'.format(image_to_save, self.remote_path),)
+                stdin, stdout, ssh_stderr = ssh.exec_command(
+                    'cp -v {} {}/{}'.format(image_to_save, self.remote_path, current_backup_dir)
+                )
                 out.append(stdout.readlines())
                 stdin.flush()
         except SSHException as e:
             logging.critical('SSH error: {}'.format(e))
-            return False
+            return False, current_backup_dir
         if not self._activate_vm(vm):
             out.append("Failed to reactivate VM\n")
+        return out, current_backup_dir
+
+    def retrieve_backup(self, backup_name=None):
+        if not backup_name:
+            logging.warning('Tried to obtain a backup but no name was given')
+            return False
+        out = []
+        if 'port' in self.connection:
+            ssh_port = self.connection['port']
+        else:
+            ssh_port = 22
+        ssh = SSHClient()
+        ssh.set_missing_host_key_policy(AutoAddPolicy())
+        ssh.load_host_keys(filename=path.join(path.expanduser('~'), '.ssh', 'known_hosts'))
+        try:
+            ssh.connect(
+                hostname=self.connection['host'],
+                username=self.connection['user'],
+                port=ssh_port,
+                key_filename=self.connection['keyfile']
+            )
+        except SSHException as e:
+            logging.critical('SSH Failed: {}'.format(e))
+            ssh.close()
+            return False
+        try:
+            out = scp.get(ssh, self.remote_path + '/' + backup_name, '/app/backups')
+        except SSHException as e:
+            logging.critical('SSH error: {}'.format(e))
+            return False
         return out
+
+    def list_backups(self):
+        out = []
+        if 'port' in self.connection:
+            ssh_port = self.connection['port']
+        else:
+            ssh_port = 22
+        ssh = SSHClient()
+        ssh.set_missing_host_key_policy(AutoAddPolicy())
+        ssh.load_host_keys(filename=path.join(path.expanduser('~'), '.ssh', 'known_hosts'))
+        try:
+            ssh.connect(
+                hostname=self.connection['host'],
+                username=self.connection['user'],
+                port=ssh_port,
+                key_filename=self.connection['keyfile']
+            )
+        except SSHException as e:
+            logging.critical('SSH Failed: {}'.format(e))
+            ssh.close()
+            return False
+        try:
+            stdin, stdout, ssh_stderr = ssh.exec_command(
+                'cd {} && find . -type d -mindepth 1 -iname {}'.format('/var/backups', "backup-\*")
+            )
+            stdin.flush()
+        except SSHException as e:
+            logging.critical('SSH error: {}'.format(e))
+            del ssh
+            return False
+        del ssh
+        return str(stdout, encoding='utf-8')
 
     def list_snapshots(self):
         out = list()

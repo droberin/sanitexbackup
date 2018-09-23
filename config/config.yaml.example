@@ -2,5 +2,15 @@ connection:
   host: "your remote host name or IP address, can be localhost"
   user: "remote_username"
   port: 22
+  temporarily_remote_backup_path: /var/backups
   vm_name: "your_virtual_machine_name_to_backup"
   telegram_token: "your:telegram:token"
+  users:
+    0001:
+      name: DRoBeR
+      totp_key: TOTPkey
+      phone: +34123456789
+    0002:
+      name: DRoBeR
+      totp_key: TOTPkey
+      phone: +34123456789

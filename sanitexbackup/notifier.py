@@ -5,7 +5,7 @@ import sys
 import time
 import logging
 import datetime
-# import pyotp
+import pyotp
 
 from telegram.ext import MessageHandler, Filters
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
@@ -18,8 +18,9 @@ class Notifier:
     my_token = None
     updater = None
     dispatcher = None
+    users = {}
 
-    def __init__(self, connection=None):
+    def __init__(self, connection=None,):
         if 'telegram_token' in connection:
             logging.warning("telegram token found in config!")
             self.my_token = connection['telegram_token']
@@ -27,6 +28,11 @@ class Notifier:
             logging.warning('No Telegram token found in environment var TELEGRAM_TOKEN')
             logging.info("Finishing Telegram bot process.")
             sys.exit(1)
+        if 'users' in connection:
+            if type(connection['users']) == dict:
+                self.users = connection['users']
+            else:
+                logging.warning('User list configuration is not valid')
         try:
             self.updater = Updater(token=self.my_token)
             self.dispatcher = self.updater.dispatcher
@@ -86,7 +92,7 @@ class Notifier:
                 return False
 
     def echo(self, bot, update):
-        chat_id = str(update.message.chat_id)
+        chat_id = update.message.chat_id
         message = update.message.text
         incoming_photos = update.message.photo
         message_time = update.message.date
@@ -123,22 +129,22 @@ class Notifier:
             logging.info("Some photos are coming!!! {}".format(len(incoming_photos)))
 
         if message.lower().startswith("configure"):
-            if chat_id in valid_uids:
+            if chat_id in self.users:
                 params = message.split(' '),
                 params = params[0]
                 if len(params) > 1:
                     if params[1] == "phone":
                         if len(params) > 2:
                             logging.info("[{}] configured a new phone number.".format(chat_id))
-                            current_phone_number = valid_uids[chat_id]['phone']
+                            current_phone_number = self.users[chat_id]['phone']
                             bot.sendMessage(chat_id=chat_id, text="Cambiado teléfono de '{}' a '{}'"
                                             .format(current_phone_number, params[2]))
-                            valid_uids[chat_id]['phone'] = params[2]
+                            self.users[chat_id]['phone'] = params[2]
                         else:
                             bot.sendMessage(chat_id=chat_id, text="Prueba a añadir también el número.")
                     elif params[1] == "name":
                         bot.sendMessage(chat_id=chat_id, text="No, no te dejo cambiarte el nombre. Te llamas {} y punto"
-                                        .format(valid_uids[chat_id]['name']))
+                                        .format(self.users[chat_id]['name']))
                     else:
                         bot.sendMessage(chat_id=chat_id, text="No sé qué hacer con eso. {}".format(params))
                 else:
@@ -147,37 +153,22 @@ class Notifier:
                 bot.sendMessage(chat_id=chat_id, text="Que a ti ni agua.")
 
         elif message.lower().startswith("hi") or message.lower().startswith("hola"):
-            if chat_id in valid_uids:
+            if chat_id in self.users:
                 bot.sendMessage(chat_id=chat_id, text="Hi, {}".format(user_name))
             else:
-                bot.sendMessage(chat_id=chat_id, text="Hola, persona desconocida que se hace llamar «{}»".format(user_name))
+                bot.sendMessage(
+                    chat_id=chat_id,
+                    text="Hola, persona desconocida que se hace llamar «{}»".format(user_name)
+                )
 
-        elif message.lower().startswith("push"):
-            if chat_id in valid_uids:
-                params = message.split(' '),
-                params = params[0]
-                if len(params) > 1:
-                    device_name = params[1]
-                    if len(params) > 2:
-                        device_pin = int(params[2])
-                    else:
-                        device_pin = 18
-                    result = request_push_to_device(device_name, 'gpio_push', device_pin)
-                    logging.info("[{}] Requested Gate push: {} {}".format(user_name, device_name, device_pin))
-                    bot.sendMessage(chat_id=chat_id, text="[PUSH] '{}' ({}): {}".format(device_name, device_pin, result))
-                else:
-                    bot.sendMessage(chat_id=chat_id, text="Device name required (pin number defaults 18).")
-            else:
-                bot.sendMessage(chat_id=chat_id, text="No, can't do\n"
-                                                      "Tu ID es: {}".format(chat_id))
         elif message.lower().startswith("time"):
             showtime = strftime("%Y-%m-%d %H:%M:%S", gmtime())
             bot.sendMessage(chat_id=chat_id, text="GMT: {}".format(showtime))
 
         elif message.lower().startswith("totp"):
-            if chat_id in valid_uids:
-                if "totp_key" in valid_uids[chat_id]:
-                    totp = pyotp.TOTP(valid_uids[chat_id]['totp_key'])
+            if chat_id in self.users:
+                if "totp_key" in self.users[chat_id]:
+                    totp = pyotp.TOTP(self.users[chat_id]['totp_key'])
                     current_pass = totp.now()
                     bot.sendMessage(chat_id=chat_id, text="Current pass: {}".format(current_pass))
                 else:
@@ -190,33 +181,103 @@ class Notifier:
             bot.sendMessage(chat_id=chat_id, text="Eres: {}".format(chat_id))
 
         elif message.startswith("create backup"):
-            if self.connection is None:
-                bot.sendMessage(chat_id=chat_id, text="Connection not defined")
-                return False
-            new_backup = create_backup.CreateBackup(self.connection)
-            data = new_backup.create_backup()
-            del new_backup
-            bot.sendMessage(chat_id=chat_id, text="Data: {}".format(data))
+            if chat_id in self.users:
+                if self.connection is None:
+                    bot.sendMessage(chat_id=chat_id, text="Connection not defined")
+                    return False
+                bot.sendMessage(chat_id=chat_id, text="Hold on, this may take a while...")
+                new_backup = create_backup.CreateBackup(self.connection)
+                (data, backup_name) = new_backup.create_backup()
+                if backup_name:
+                    logging.warning('New remote backup created: {}'.format(backup_name))
+                    bot.sendMessage(chat_id=chat_id, text="Backup Name: {}".format(backup_name))
+                else:
+                    logging.warning('Failed to create new backup:\n{}'.format(data))
+                del new_backup
+                bot.sendMessage(chat_id=chat_id, text="Data: {}".format(data))
+            else:
+                logging.warning('Unknown user {} with ID {} tried to create a backup!'.format(user_name, chat_id))
+
+        elif message.startswith("list backups"):
+            if chat_id in self.users:
+                if self.connection is None:
+                    bot.sendMessage(chat_id=chat_id, text="Connection not defined")
+                    return False
+                new_backup = create_backup.CreateBackup(self.connection)
+                data = list(new_backup.list_backups())
+                del new_backup
+                if data:
+                    _composed_message = "\n".join(data)
+                    bot.sendMessage(
+                        chat_id=chat_id,
+                        text="backups of {}:\n{}".format(self.connection['vm_name'], _composed_message)
+                    )
+                else:
+                    bot.sendMessage(
+                        chat_id=chat_id,
+                        text="Failed to list backups."
+                    )
+            else:
+                logging.warning('Unknown user {} with ID {} tried to list backups!'.format(user_name, chat_id))
+
+        elif message.startswith("retrieve backup") or message.startswith("get backup"):
+            if chat_id in self.users:
+                if self.connection is None:
+                    bot.sendMessage(chat_id=chat_id, text="Connection not defined")
+                    return False
+                params = message.split(' '),
+                params = params[0]
+                if len(params) > 2:
+                    if params[3] is None:
+                        bot.sendMessage(chat_id=chat_id, text="Please, provide a backup name.")
+                        return False
+                backup_name = str(params[3])
+                bot.sendMessage(chat_id=chat_id, text="Hold on, this may take a while... really...")
+                new_backup = create_backup.CreateBackup(self.connection)
+                data = list(new_backup.retrieve_backup(backup_name))
+                del new_backup
+                if data:
+                    _composed_message = "\n".join(data)
+                    bot.sendMessage(
+                        chat_id=chat_id,
+                        text="Result of backup {} retrieval:\n{}".format(backup_name, _composed_message)
+                    )
+                else:
+                    bot.sendMessage(
+                        chat_id=chat_id,
+                        text="Failed to retrieve remote backup {}.".format(backup_name)
+                    )
+            else:
+                logging.warning('Unknown user {} with ID {} tried to list backups!'.format(user_name, chat_id))
 
         elif message.startswith("list snapshots"):
-            if self.connection is None:
-                bot.sendMessage(chat_id=chat_id, text="Connection not defined")
-                return False
-            new_backup = create_backup.CreateBackup(self.connection)
-            data = list(new_backup.list_snapshots())
-            del new_backup
-            _composed_message = "\n".join(data)
-            bot.sendMessage(chat_id=chat_id, text="Snapshots of {}:\n{}".format(self.connection['vm_name'], _composed_message))
+            if chat_id in self.users:
+                if self.connection is None:
+                    bot.sendMessage(chat_id=chat_id, text="Connection not defined")
+                    return False
+                new_backup = create_backup.CreateBackup(self.connection)
+                data = list(new_backup.list_snapshots())
+                del new_backup
+                _composed_message = "\n".join(data)
+                bot.sendMessage(
+                    chat_id=chat_id,
+                    text="Snapshots of {}:\n{}".format(self.connection['vm_name'], _composed_message)
+                )
+            else:
+                logging.warning('Unknown user {} with ID {} tried to list snapshots!'.format(user_name, chat_id))
 
         elif message.startswith("create snapshot"):
-            if self.connection is None:
-                bot.sendMessage(chat_id=chat_id, text="Connection not defined")
-                return False
-            new_backup = create_backup.CreateBackup(self.connection)
-            data = new_backup.create_snapshot()
-            del new_backup
-            _composed_message = "\n".join(data)
-            bot.sendMessage(chat_id=chat_id, text="Data:\n{}".format(_composed_message))
+            if chat_id in self.users:
+                if self.connection is None:
+                    bot.sendMessage(chat_id=chat_id, text="Connection not defined")
+                    return False
+                new_backup = create_backup.CreateBackup(self.connection)
+                data = new_backup.create_snapshot()
+                del new_backup
+                _composed_message = "\n".join(data)
+                bot.sendMessage(chat_id=chat_id, text="Data:\n{}".format(_composed_message))
+            else:
+                logging.warning('Unknown user {} with ID {} tried to create a snapshot!'.format(user_name, chat_id))
 
         else:
-            bot.sendMessage(chat_id=chat_id, text="No he entendido guay. Comienza nuevamente el proceso")
+            bot.sendMessage(chat_id=chat_id, text="Orden desconocida.")
