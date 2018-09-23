@@ -66,9 +66,11 @@ class Notifier:
                  "\n"
                  "Perhaps a /help will be handy [TODO]\n"
                  "Userful commands:\n"
-                 "\topen: to open a gate\n"
-                 "\ttotp: provides a OTP code you can give to someone at the entrance\n"
-                 "\ttoggle: toggles a gate\n"
+                 "\tlist backups\n"
+                 "\tcreate backup (MIND IT WILL STOP THE VM)\n"
+                 "\tcreate snapshot\n"
+                 "\tlist snapshots\n"
+                 "\twhoami\n"
                  "".format(update.message.chat.username)
         )
         logging.info("[START] ID {} requested a start (@{})".format(update.message.chat_id, update.message.chat.username))
@@ -207,10 +209,9 @@ class Notifier:
                 data = list(new_backup.list_backups())
                 del new_backup
                 if data:
-                    _composed_message = "\n".join(data)
                     bot.sendMessage(
                         chat_id=chat_id,
-                        text="backups of {}:\n{}".format(self.connection['vm_name'], _composed_message)
+                        text="backups of {}:\n{}".format(self.connection['vm_name'], data)
                     )
                 else:
                     bot.sendMessage(
@@ -228,10 +229,10 @@ class Notifier:
                 params = message.split(' '),
                 params = params[0]
                 if len(params) > 2:
-                    if params[3] is None:
+                    if params[2] is None:
                         bot.sendMessage(chat_id=chat_id, text="Please, provide a backup name.")
                         return False
-                backup_name = str(params[3])
+                backup_name = str(params[2])
                 bot.sendMessage(chat_id=chat_id, text="Hold on, this may take a while... really...")
                 new_backup = create_backup.CreateBackup(self.connection)
                 data = list(new_backup.retrieve_backup(backup_name))
