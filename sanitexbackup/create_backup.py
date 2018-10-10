@@ -251,7 +251,7 @@ class CreateBackup:
             del ssh
             return False
         del ssh
-        return str(stdout.read(), encoding='utf-8')
+        return str(stdout.readlines(), encoding='utf-8')
 
     def list_snapshots(self):
         out = list()

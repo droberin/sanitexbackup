@@ -206,7 +206,7 @@ class Notifier:
                     bot.sendMessage(chat_id=chat_id, text="Connection not defined")
                     return False
                 new_backup = create_backup.CreateBackup(self.connection)
-                data = list(new_backup.list_backups())
+                data = list(str(new_backup.list_backups()).split('\n'))
                 del new_backup
                 if data:
                     bot.sendMessage(
