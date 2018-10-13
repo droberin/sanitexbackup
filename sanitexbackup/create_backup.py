@@ -240,7 +240,7 @@ class CreateBackup:
             del ssh
             return False
         del ssh
-        return stdout.readlines()
+        return stdout.readlines().replace('\\n', '\n')
 
     def list_snapshots(self):
         out = list()
