@@ -219,10 +219,10 @@ class CreateBackup:
         for root, dirs, files in walk(local_path):
             level = root.replace(local_path, '').count(sep)
             indent = ' ' * 4 * (level)
-            structure += ('{}{}/'.format(indent, path.basename(root)))
+            structure += ('{}{}/\n'.format(indent, path.basename(root)))
             subindent = ' ' * 4 * (level + 1)
             for f in files:
-                structure += ('{}{}'.format(subindent, f))
+                structure += ('{}{}\n'.format(subindent, f))
         return structure
 
     def list_remote_backups(self):
