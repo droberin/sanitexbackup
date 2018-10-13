@@ -62,17 +62,6 @@ class CreateBackup:
             return None
         else:
             try:
-                # ssh = SSHClient()
-                # ssh.set_missing_host_key_policy(AutoAddPolicy())
-                # # TODO: Port is hardcoded here... fix it
-                # ssh.connect(
-                #     hostname=self.connection['host'],
-                #     username=self.connection['user'],
-                #     port=22,
-                #     key_filename=self.connection['keyfile'],
-                #     pkey=self.connection['keyfile'],
-                # )
-                # ssh.close()
                 if not self._is_libvirt_connected():
                     self.__connect_libvirt()
             except SSHException as e:
