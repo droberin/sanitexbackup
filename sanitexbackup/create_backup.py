@@ -241,7 +241,7 @@ class CreateBackup:
             return False
         del ssh
         retrieved_data = stdout.readlines()
-        parsed_retrieved_data = None
+        parsed_retrieved_data = str()
         for backup_unit_line in retrieved_data:
             if str(backup_unit_line).startswith('./'):
                 parsed_retrieved_data += backup_unit_line[-2:] + '\n'
