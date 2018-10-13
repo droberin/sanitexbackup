@@ -211,7 +211,7 @@ class CreateBackup:
         return out
 
     def list_local_backups(self):
-        return self._create_tree_from_path('/storage/backups')
+        return self._create_tree_from_path('/app/backups')
 
     @staticmethod
     def _create_tree_from_path(local_path):
