@@ -167,7 +167,7 @@ class CreateBackup:
 
     @staticmethod
     def _print_scp_progress(filename, size, sent):
-        logging.warning("%s\'s progress: %.2f%% \r" % (filename, float(sent)/float(size)*100) )
+        logging.warning("%s\'s progress: %.2f%% \r" % (filename, float(sent) / float(size) * 100))
 
     def retrieve_backup(self, backup_name=None):
         if not backup_name:
@@ -241,7 +241,12 @@ class CreateBackup:
             return False
         del ssh
         retrieved_data = stdout.readlines()
-        parsed_retrieved_data = "\n".join(str(x) for x in retrieved_data)
+        parsed_retrieved_data = None
+        for backup_unit_line in retrieved_data:
+            if str(backup_unit_line).startswith('./'):
+                parsed_retrieved_data += backup_unit_line[-2:] + '\n'
+            else:
+                parsed_retrieved_data += backup_unit_line + '\n'
         return parsed_retrieved_data
 
     def list_snapshots(self):
