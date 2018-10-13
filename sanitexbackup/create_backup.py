@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
-from os import path, mkdir
+from os import path, mkdir, walk, sep
 from paramiko import SSHClient, SSHException, AutoAddPolicy
 from time import sleep
 from xml.dom import minidom
@@ -210,7 +210,22 @@ class CreateBackup:
             out = 'Backup not found in remote server'
         return out
 
-    def list_backups(self):
+    def list_local_backups(self):
+        return self._create_tree_from_path('/storage/backups')
+
+    @staticmethod
+    def _create_tree_from_path(local_path):
+        structure = str()
+        for root, dirs, files in walk(local_path):
+            level = root.replace(local_path, '').count(sep)
+            indent = ' ' * 4 * (level)
+            structure += ('{}{}/'.format(indent, path.basename(root)))
+            subindent = ' ' * 4 * (level + 1)
+            for f in files:
+                structure += ('{}{}'.format(subindent, f))
+        return structure
+
+    def list_remote_backups(self):
         out = []
         if 'port' in self.connection:
             ssh_port = self.connection['port']

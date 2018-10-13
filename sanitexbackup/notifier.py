@@ -200,13 +200,34 @@ class Notifier:
             else:
                 logging.warning('Unknown user {} with ID {} tried to create a backup!'.format(user_name, chat_id))
 
-        elif message.startswith("list backups"):
+        elif message.startswith("list remote backups"):
             if chat_id in self.users:
                 if self.connection is None:
                     bot.sendMessage(chat_id=chat_id, text="Connection not defined")
                     return False
                 new_backup = create_backup.CreateBackup(self.connection)
-                data = new_backup.list_backups()
+                data = new_backup.list_remote_backups()
+                del new_backup
+                if data:
+                    bot.sendMessage(
+                        chat_id=chat_id,
+                        text="backups of {}:\n{}".format(self.connection['vm_name'], data)
+                    )
+                else:
+                    bot.sendMessage(
+                        chat_id=chat_id,
+                        text="Failed to list backups."
+                    )
+            else:
+                logging.warning('Unknown user {} with ID {} tried to list backups!'.format(user_name, chat_id))
+
+        elif message.startswith("list local backups"):
+            if chat_id in self.users:
+                if self.connection is None:
+                    bot.sendMessage(chat_id=chat_id, text="Connection not defined")
+                    return False
+                new_backup = create_backup.CreateBackup(self.connection)
+                data = new_backup.list_local_backups()
                 del new_backup
                 if data:
                     bot.sendMessage(
