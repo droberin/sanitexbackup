@@ -232,7 +232,7 @@ class Notifier:
                 if data:
                     bot.sendMessage(
                         chat_id=chat_id,
-                        text="backups of {}:\n{}".format(self.connection['vm_name'], data)
+                        text="backups of {}:\n{}".format(self.connection['vm_name'], data).replace('\n', '\n\n')
                     )
                 else:
                     bot.sendMessage(
