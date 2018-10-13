@@ -241,10 +241,14 @@ class CreateBackup:
             return False
         del ssh
         retrieved_data = stdout.readlines()
+        return self._convert_backup_list_to_string(retrieved_data)
+
+    @staticmethod
+    def _convert_backup_list_to_string(retrieved_data):
         parsed_retrieved_data = str()
         for backup_unit_line in retrieved_data:
             if str(backup_unit_line).startswith('./'):
-                parsed_retrieved_data += backup_unit_line[-2:] + '\n'
+                parsed_retrieved_data += backup_unit_line[2:] + '\n'
             else:
                 parsed_retrieved_data += backup_unit_line + '\n'
         return parsed_retrieved_data
