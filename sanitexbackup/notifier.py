@@ -179,10 +179,10 @@ class Notifier:
                 logging.info("Unknown user: {}".format(chat_id))
                 bot.sendMessage(chat_id=chat_id, text="Don't know you.")
 
-        elif message.startswith("whoami"):
+        elif message.lower().startswith("whoami"):
             bot.sendMessage(chat_id=chat_id, text="Eres: {}".format(chat_id))
 
-        elif message.startswith("create backup"):
+        elif message.lower().startswith("create backup"):
             if chat_id in self.users:
                 if self.connection is None:
                     bot.sendMessage(chat_id=chat_id, text="Connection not defined")
@@ -200,7 +200,7 @@ class Notifier:
             else:
                 logging.warning('Unknown user {} with ID {} tried to create a backup!'.format(user_name, chat_id))
 
-        elif message.startswith("list remote backups"):
+        elif message.lower().startswith("list remote backups"):
             if chat_id in self.users:
                 if self.connection is None:
                     bot.sendMessage(chat_id=chat_id, text="Connection not defined")
@@ -221,7 +221,7 @@ class Notifier:
             else:
                 logging.warning('Unknown user {} with ID {} tried to list backups!'.format(user_name, chat_id))
 
-        elif message.startswith("list local backups"):
+        elif message.lower().startswith("list local backups"):
             if chat_id in self.users:
                 if self.connection is None:
                     bot.sendMessage(chat_id=chat_id, text="Connection not defined")
@@ -242,7 +242,7 @@ class Notifier:
             else:
                 logging.warning('Unknown user {} with ID {} tried to list backups!'.format(user_name, chat_id))
 
-        elif message.startswith("retrieve backup") or message.startswith("get backup"):
+        elif message.lower().startswith("retrieve backup") or message.lower().startswith("get backup"):
             if chat_id in self.users:
                 if self.connection is None:
                     bot.sendMessage(chat_id=chat_id, text="Connection not defined")
@@ -272,7 +272,7 @@ class Notifier:
             else:
                 logging.warning('Unknown user {} with ID {} tried to list backups!'.format(user_name, chat_id))
 
-        elif message.startswith("list snapshots"):
+        elif message.lower().startswith("list snapshots"):
             if chat_id in self.users:
                 if self.connection is None:
                     bot.sendMessage(chat_id=chat_id, text="Connection not defined")
@@ -288,7 +288,7 @@ class Notifier:
             else:
                 logging.warning('Unknown user {} with ID {} tried to list snapshots!'.format(user_name, chat_id))
 
-        elif message.startswith("create snapshot"):
+        elif message.lower().startswith("create snapshot"):
             if chat_id in self.users:
                 if self.connection is None:
                     bot.sendMessage(chat_id=chat_id, text="Connection not defined")
