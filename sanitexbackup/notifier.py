@@ -11,6 +11,7 @@ from telegram.ext import MessageHandler, Filters
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
 from time import gmtime, strftime
 
+
 # logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 
@@ -19,8 +20,17 @@ class Notifier:
     updater = None
     dispatcher = None
     users = {}
+    command_list = """
+    Available commands:
+      list local backups (lists backups already retrieved)
+      list remote backups (lists backups on the remote server)
+      create backup (Creates a REMOTE backup, must be retrieved later. MIND IT WILL STOP THE VM while copying)
+      create snapshot (Creates a REMOTE snapshot. This WON'T stop the VM)
+      list snapshots
+      whoami
+    """
 
-    def __init__(self, connection=None,):
+    def __init__(self, connection=None, ):
         if 'telegram_token' in connection:
             logging.warning("telegram token found in config!")
             self.my_token = connection['telegram_token']
@@ -51,6 +61,9 @@ class Notifier:
         start_handler = CommandHandler('start', self.start)
         self.dispatcher.add_handler(start_handler)
 
+        help_handler = CommandHandler('help', self.help)
+        self.dispatcher.add_handler(help_handler)
+
         echo_handler = MessageHandler(Filters.text, self.echo)
         self.dispatcher.add_handler(echo_handler)
 
@@ -61,19 +74,16 @@ class Notifier:
     def start(self, bot, update):
         bot.sendMessage(
             chat_id=update.message.chat_id,
-            text="Hi, {}, here I am.\n"
-                 "Tell me what you want!\n"
-                 "\n"
-                 "Perhaps a /help will be handy [TODO]\n"
-                 "Userful commands:\n"
-                 "\tlist backups\n"
-                 "\tcreate backup (MIND IT WILL STOP THE VM)\n"
-                 "\tcreate snapshot\n"
-                 "\tlist snapshots\n"
-                 "\twhoami\n"
-                 "".format(update.message.chat.username)
+            text=self.command_list
         )
-        logging.info("[START] ID {} requested a start (@{})".format(update.message.chat_id, update.message.chat.username))
+        logging.info(
+            "[START] ID {} requested a start (@{})".format(update.message.chat_id, update.message.chat.username))
+
+    def help(self, bot, update):
+        bot.sendMessage(
+            chat_id=update.message.chat_id,
+            text=self.command_list
+        )
 
     def _define_connection(self):
         _raise_error = False
@@ -121,11 +131,11 @@ class Notifier:
         if diff_time.seconds > 10:
             logging.warning("[IGNORED] Old message ({}) has been received from {} [{}]"
                             "\n\tReachable through [ http://t.me/{} or tg://resolve?domain={} ]".format(
-                                update.message.date,
-                                chat_id,
-                                full_name,
-                                user_name,
-                                user_name))
+                update.message.date,
+                chat_id,
+                full_name,
+                user_name,
+                user_name))
             return False
         if len(incoming_photos) > 0:
             logging.info("Some photos are coming!!! {}".format(len(incoming_photos)))
